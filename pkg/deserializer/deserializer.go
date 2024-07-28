@@ -7,7 +7,7 @@ import (
 	"json-serde/utils"
 )
 
-var typeNestingStack utils.Stack[utils.DataType]
+var typeNestingStack utils.Stack[utils.TokenType]
 var buffer = make([]byte, 4*1024)
 
 type _deserializer struct {
@@ -18,15 +18,15 @@ type _deserializer struct {
 	result         any
 }
 
-func (s *_deserializer) handleDataType(dataType utils.DataType, currentIndx int) {
-	if dataType == utils.StringType {
+func (s *_deserializer) handleDataType(dataType utils.TokenType, currentIndx int) {
+	if dataType == utils.String {
 		last, isEmpty := typeNestingStack.Top()
 		if !isEmpty && last == dataType {
 			s.value = append(s.carryOverValue, buffer[s.valueStartIndx+1:currentIndx]...)
 			s.valueStartIndx = -1
 		} else {
 			s.valueStartIndx = currentIndx
-			typeNestingStack.Push(utils.StringType)
+			typeNestingStack.Push(utils.String)
 		}
 	}
 }
@@ -38,7 +38,7 @@ func (s *_deserializer) saveValue() {
 	}
 	var value any
 	switch last {
-	case utils.StringType:
+	case utils.String:
 		value = string(s.value)
 	}
 
@@ -75,15 +75,15 @@ func isWhiteSpace(ch byte) bool {
 		ch == '\t'
 }
 
-func scan(ch byte) utils.DataType {
-	var dt = utils.NoType
+func scan(ch byte) utils.TokenType {
+	var dt = utils.None
 	switch ch {
 	case '"':
-		dt = utils.StringType
+		dt = utils.String
 	case '[', ']':
-		dt = utils.ArrayType
+		dt = utils.Array
 	case '{', '}':
-		dt = utils.ObjectType
+		dt = utils.Object
 	}
 	return dt
 }

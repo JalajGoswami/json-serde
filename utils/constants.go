@@ -1,17 +1,6 @@
 package utils
 
-type DataType = uint8
 type TokenType = uint8
-
-const (
-	NoType DataType = iota
-	StringType
-	NumberType
-	BooleanType
-	NullType
-	ArrayType
-	ObjectType
-)
 
 const (
 	None TokenType = iota
@@ -23,6 +12,6 @@ const (
 	Object
 )
 
-func IsPrimitiveType(t DataType) bool {
-	return t != ObjectType && t != ArrayType
+func IsPrimitiveType(t TokenType) bool {
+	return t != Object && t != Array
 }
