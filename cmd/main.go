@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"json-serde/pkg/tokenizer"
 	"json-serde/utils"
 )
 
@@ -18,16 +19,17 @@ func main() {
 	utils.PrintLogo()
 	file := utils.OpenFile(fLong, fShort)
 	defer file.Close()
-	var buffer = make([]byte, 3)
-	n, err := file.Read(buffer)
-	fmt.Println(n, err, string(buffer), buffer[1] == '\\')
+	// var buffer = make([]byte, 3)
+	// n, err := file.Read(buffer)
+	// fmt.Println(n, err, string(buffer), buffer[1] == '\\')
 
-	buffer = make([]byte, 3)
-	n, err = file.Read(buffer)
-	fmt.Println(n, err, string(buffer))
-	// var data any
-	// deserializer.Deserialize(file, &data)
-
-	// dt, _ := io.ReadAll(file)
-	// json.Unmarshal(dt, &data)
+	// buffer = make([]byte, 3)
+	// n, err = file.Read(buffer)
+	// fmt.Println(n, err, string(buffer))
+	tokenGenerator := tokenizer.NewTokenizer(file)
+	token, err := tokenGenerator.Next()
+	fmt.Println(token, err)
+	if token != nil {
+		fmt.Println(string(token.Value))
+	}
 }
