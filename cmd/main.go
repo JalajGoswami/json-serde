@@ -28,8 +28,8 @@ func main() {
 	// fmt.Println(n, err, string(buffer))
 	tokenGenerator := tokenizer.NewTokenizer(file)
 	token, err := tokenGenerator.Next()
-	fmt.Println(token, err)
+	fmt.Println(err)
 	if token != nil {
-		fmt.Println(string(token.Value))
+		fmt.Println(token.TokenType, string(token.Value))
 	}
 }

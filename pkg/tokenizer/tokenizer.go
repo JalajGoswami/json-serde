@@ -13,13 +13,14 @@ type Token struct {
 }
 
 type tokenizer struct {
-	reader     io.Reader
-	buffer     []byte
-	bufferLen  int
-	readIndex  int
-	valueIndex int
-	prevBuffer []byte
-	token      Token
+	reader       io.Reader
+	buffer       []byte
+	bufferLen    int
+	readIndex    int
+	valueIndex   int
+	valuePadding int
+	prevBuffer   []byte
+	token        Token
 }
 
 func NewTokenizer(rd io.Reader) tokenizer {
@@ -29,7 +30,11 @@ func NewTokenizer(rd io.Reader) tokenizer {
 func (t *tokenizer) Next() (*Token, error) {
 	err := t.read()
 	if err != nil {
-		return nil, err
+		if err == io.EOF && t.bufferLen == 0 {
+			return nil, ErrUnexpectedEOF
+		} else {
+			return nil, err
+		}
 	}
 
 	var stop = false
@@ -40,8 +45,9 @@ func (t *tokenizer) Next() (*Token, error) {
 		}
 		t.readIndex++
 	}
-	fmt.Println(t.valueIndex, t.readIndex+1)
-	t.token.Value = append(t.prevBuffer, t.buffer[t.valueIndex:t.readIndex+1]...)
+	valueStartIndx := t.valueIndex + t.valuePadding
+	valueEndIndx := t.readIndex - t.valuePadding
+	t.token.Value = append(t.prevBuffer, t.buffer[valueStartIndx:valueEndIndx]...)
 	return &t.token, nil
 }
 
@@ -61,10 +67,10 @@ func (t *tokenizer) read() error {
 func (t *tokenizer) mustRead(errorMsg string) error {
 	err := t.read()
 	if err == io.EOF {
-		return fmt.Errorf(errorMsg)
+		return fmt.Errorf("%w, %v", ErrUnexpectedEOF, errorMsg)
 	}
 	if err != nil || t.isBufferEmpty() {
-		return cmp.Or(err, fmt.Errorf(errorMsg))
+		return cmp.Or(err, fmt.Errorf("%w, %v", ErrUnexpectedEOF, errorMsg))
 	}
 	return nil
 }
@@ -76,7 +82,7 @@ func (t *tokenizer) isBufferEmpty() bool {
 func (t *tokenizer) readCh() (stop bool, err error) {
 	switch t.token.TokenType {
 	case utils.None:
-		token, err := predictTokenType(t.buffer[t.readIndex])
+		token, err := t.predictTokenType()
 		if err != nil {
 			return false, err
 		}
@@ -96,12 +102,14 @@ func (t *tokenizer) readCh() (stop bool, err error) {
 	return
 }
 
-func predictTokenType(ch byte) (utils.TokenType, error) {
+func (t *tokenizer) predictTokenType() (utils.TokenType, error) {
+	ch := t.buffer[t.readIndex]
 	switch ch {
 	case ' ', '\n', '\r', '\t':
 		return utils.None, nil
 
 	case '"':
+		t.valuePadding = 1
 		return utils.String, nil
 
 	case 't', 'f':
@@ -117,11 +125,11 @@ func predictTokenType(ch byte) (utils.TokenType, error) {
 	if ch >= '0' && ch <= '9' {
 		return utils.Number, nil
 	}
-	return utils.None, fmt.Errorf("invalid token %c", ch)
+	return utils.None, fmt.Errorf("%w %c", ErrInvalidToken, ch)
 }
 
 func (t *tokenizer) readString() (stop bool, err error) {
-	err = t.mustRead("invalid end of string")
+	err = t.mustRead("non-terminated string")
 	if err != nil {
 		return false, err
 	}
@@ -131,16 +139,17 @@ func (t *tokenizer) readString() (stop bool, err error) {
 			t.storeValue()
 			err := t.read()
 			if err == io.EOF {
-				return false, fmt.Errorf("invalid use of escape (\\) sequence")
+				return false, ErrInvalidEscapeChar
 			} else if err != nil {
 				return false, err
 			}
 		}
 		// removing escape symbol from buffer
 		t.buffer = append(t.buffer[:t.readIndex], t.buffer[t.readIndex+1:]...)
+		t.bufferLen--
+
 		ch = t.buffer[t.readIndex]
 		switch ch {
-		// ", \, / all will be handled automatically
 		case 'b':
 			t.buffer[t.readIndex] = '\b'
 
@@ -155,6 +164,12 @@ func (t *tokenizer) readString() (stop bool, err error) {
 
 		case 't':
 			t.buffer[t.readIndex] = '\t'
+
+		case '"', '\\', '/':
+			// ", \, / all will be handled automatically
+
+		default:
+			return false, fmt.Errorf("%w", ErrInvalidEscapeChar)
 
 		}
 		return false, nil
