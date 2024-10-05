@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"json-serde/utils"
+	"slices"
 )
 
 type Token struct {
@@ -23,8 +24,18 @@ type tokenizer struct {
 	token        Token
 }
 
-func NewTokenizer(rd io.Reader) tokenizer {
-	return tokenizer{reader: rd, buffer: make([]byte, 4*1024)}
+type TokenizerConfig struct {
+	BufferLen int
+}
+
+func NewTokenizer(rd io.Reader, configs ...TokenizerConfig) tokenizer {
+	var bufferLen = 4 * 1024
+	for _, config := range configs {
+		if config.BufferLen > 0 {
+			bufferLen = config.BufferLen
+		}
+	}
+	return tokenizer{reader: rd, buffer: make([]byte, bufferLen)}
 }
 
 func (t *tokenizer) Next() (*Token, error) {
@@ -45,32 +56,43 @@ func (t *tokenizer) Next() (*Token, error) {
 		}
 		t.readIndex++
 	}
-	valueStartIndx := t.valueIndex + t.valuePadding
-	valueEndIndx := t.readIndex - t.valuePadding
-	t.token.Value = append(t.prevBuffer, t.buffer[valueStartIndx:valueEndIndx]...)
+	paddingFactor := 1
+	if len(t.prevBuffer) != 0 {
+		t.prevBuffer = slices.Delete(t.prevBuffer, 0, t.valuePadding)
+		paddingFactor = 0
+	}
+	valueStartIndex := t.valueIndex + (paddingFactor * t.valuePadding)
+	valueEndIndex := t.readIndex - t.valuePadding
+	t.token.Value = append(t.prevBuffer, t.buffer[valueStartIndex:valueEndIndex]...)
 	return &t.token, nil
 }
 
 func (t *tokenizer) read() error {
 	if t.isBufferEmpty() {
+		if t.valueIndex != -1 {
+			t.storeValue()
+		}
 		n, err := t.reader.Read(t.buffer)
 		if err != nil {
 			return err
 		}
 		t.bufferLen = n
 		t.readIndex = 0
-		t.valueIndex = 0
+		t.valueIndex = -1
 	}
 	return nil
 }
 
-func (t *tokenizer) mustRead(errorMsg string) error {
+func (t *tokenizer) mustRead(e error) error {
 	err := t.read()
 	if err == io.EOF {
-		return fmt.Errorf("%w, %v", ErrUnexpectedEOF, errorMsg)
+		return fmt.Errorf("%w, %w", ErrUnexpectedEOF, e)
 	}
 	if err != nil || t.isBufferEmpty() {
-		return cmp.Or(err, fmt.Errorf("%w, %v", ErrUnexpectedEOF, errorMsg))
+		return fmt.Errorf("%w, %w", cmp.Or(err, ErrUnexpectedEOF), e)
+	}
+	if t.valueIndex == -1 {
+		t.valueIndex = 0
 	}
 	return nil
 }
@@ -129,7 +151,7 @@ func (t *tokenizer) predictTokenType() (utils.TokenType, error) {
 }
 
 func (t *tokenizer) readString() (stop bool, err error) {
-	err = t.mustRead("non-terminated string")
+	err = t.mustRead(ErrUnterminatedString)
 	if err != nil {
 		return false, err
 	}
@@ -137,16 +159,16 @@ func (t *tokenizer) readString() (stop bool, err error) {
 	if ch == '\\' {
 		if t.readIndex+1 >= t.bufferLen {
 			t.storeValue()
-			err := t.read()
-			if err == io.EOF {
-				return false, ErrInvalidEscapeChar
-			} else if err != nil {
+			err := t.mustRead(ErrInvalidEscapeChar)
+			if err != nil {
 				return false, err
 			}
+			t.prevBuffer = slices.Delete(t.prevBuffer, len(t.prevBuffer)-1, len(t.prevBuffer))
+		} else {
+			// removing escape symbol from buffer
+			_ = slices.Delete(t.buffer, t.readIndex, t.readIndex+1)
+			t.bufferLen--
 		}
-		// removing escape symbol from buffer
-		t.buffer = append(t.buffer[:t.readIndex], t.buffer[t.readIndex+1:]...)
-		t.bufferLen--
 
 		ch = t.buffer[t.readIndex]
 		switch ch {
@@ -181,7 +203,7 @@ func (t *tokenizer) readString() (stop bool, err error) {
 }
 
 func (t *tokenizer) storeValue() {
-	value := t.buffer[t.valueIndex : t.readIndex+1]
+	value := t.buffer[t.valueIndex:min(t.readIndex+1, t.bufferLen)]
 	t.prevBuffer = append(t.prevBuffer, value...)
 	t.valueIndex = t.readIndex + 1
 }

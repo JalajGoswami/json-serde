@@ -10,3 +10,5 @@ var ErrInvalidToken = errors.New("invalid token")
 var ErrUnexpectedEOF = io.ErrUnexpectedEOF
 
 var ErrInvalidEscapeChar = errors.New("invalid use of escape (\\) sequence")
+
+var ErrUnterminatedString = errors.New("unterminated string")

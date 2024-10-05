@@ -43,7 +43,7 @@ func (s *_deserializer) saveValue() {
 	}
 
 	typeNestingStack.Pop()
-
+	fmt.Println(value)
 }
 
 func Deserialize(reader io.Reader, data any) {
