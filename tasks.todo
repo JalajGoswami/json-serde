@@ -1,0 +1,18 @@
+TOKENIZER:
+    ☐ String
+        ✔ String detection & parsing @done
+        ☐ Handling control & escape characters
+            ✔ Common control characters & escape sequences @done
+            ☐ Custom hexadecimal control codes (\u_hex_digits)
+
+    ☐ Number
+        ☐ Number detection & parsing
+        ☐ Handling negative and fractional number
+        ☐ Numbers with exponential expression
+    
+    ☐ Boolean
+    ☐ Null & basic separator like colon, comma
+    ☐ Object
+    ☐ Array
+
+DESIRALIZER:

@@ -17,7 +17,7 @@ func TestString(t *testing.T) {
 	}{
 		{name: "Empty Contents", input: "", err: ErrUnexpectedEOF},
 		{name: "Unterminated Quote", input: "\"", err: ErrUnexpectedEOF},
-		{name: "Un-quotted String", input: "hi", err: ErrInvalidToken},
+		{name: "Un-quoted String", input: "hi", err: ErrInvalidToken},
 		{name: "Unterminated String", input: "\"hi", err: ErrUnexpectedEOF},
 		{name: "Small String", input: "\"hi\"", result: "hi"},
 		{
@@ -25,14 +25,14 @@ func TestString(t *testing.T) {
 			input:  "\"a long string overflowing provided buffer length\"",
 			result: "a long string overflowing provided buffer length",
 		},
-		{name: "Multiline", input: "\"a\\n multilinee\\b\\t msg\"", result: "a\n multiline\t msg"},
-		{name: "Esape Keywords", input: "\"\\\" \\\\ \\/\"", result: "\\\" \\\\ \\/"},
+		{name: "Multiline", input: "\"a\\n multiline\\b\\t msg\"", result: "a\n multiline\b\t msg"},
+		{name: "Escape Keywords", input: "\"\\\" \\\\ \\/\"", result: "\" \\ /"},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			rd := readerFrom(testCase.input)
 			config := TokenizerConfig{
-				BufferLen: 8, // small value to check bytes synchronisation
+				BufferLen: 8, // small value to check bytes synchronization
 			}
 			tokenGenerator := NewTokenizer(rd, config)
 			token, err := tokenGenerator.Next()
@@ -41,12 +41,15 @@ func TestString(t *testing.T) {
 			}
 			if testCase.err == nil {
 				if token == nil {
-					t.Log(testCase.input)
 					t.Errorf("Got error: %v with token: <nil> expected a string token", err)
 					return
 				}
 				if token.TokenType != utils.String {
 					t.Errorf("Invalid token type expected: %v got %v", utils.String, token.TokenType)
+					return
+				}
+				if string(token.Value) != testCase.result {
+					t.Errorf("Expected value: %v, got %v", testCase.result, string(token.Value))
 					return
 				}
 			}
