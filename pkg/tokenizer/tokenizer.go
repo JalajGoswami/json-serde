@@ -39,6 +39,7 @@ func NewTokenizer(rd io.Reader, configs ...TokenizerConfig) tokenizer {
 }
 
 func (t *tokenizer) Next() (*Token, error) {
+	t.clear()
 	err := t.read()
 	if err != nil {
 		if err == io.EOF && t.bufferLen == 0 {
@@ -120,6 +121,8 @@ func (t *tokenizer) readCh() (stop bool, err error) {
 		return true, nil
 	case utils.String:
 		return t.readString()
+	case utils.Number:
+		return t.readNumber()
 	}
 	return
 }
@@ -144,7 +147,7 @@ func (t *tokenizer) predictTokenType() (utils.TokenType, error) {
 		return utils.Object, nil
 	}
 
-	if ch >= '0' && ch <= '9' {
+	if (ch >= '0' && ch <= '9') || ch == '-' {
 		return utils.Number, nil
 	}
 	return utils.None, fmt.Errorf("%w %c", ErrInvalidToken, ch)
@@ -154,4 +157,11 @@ func (t *tokenizer) storeValue() {
 	value := t.buffer[t.valueIndex:min(t.readIndex+1, t.bufferLen)]
 	t.prevBuffer = append(t.prevBuffer, value...)
 	t.valueIndex = t.readIndex + 1
+}
+
+func (t *tokenizer) clear() {
+	t.token = Token{}
+	t.prevBuffer = []byte{}
+	t.valueIndex = -1
+	t.valuePadding = 0
 }

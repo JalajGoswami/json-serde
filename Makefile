@@ -5,3 +5,7 @@ start:
 
 build:
 	go build -o dist/json-serde.bin cmd/main.go
+
+
+test:
+	go test ./pkg/*/
