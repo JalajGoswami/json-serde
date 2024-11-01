@@ -30,6 +30,6 @@ func main() {
 	token, err := tokenGenerator.Next()
 	fmt.Println(err)
 	if token != nil {
-		fmt.Println(token.TokenType, string(token.Value))
+		fmt.Println(token.TokenType, string(token.Value), len(token.Value))
 	}
 }
