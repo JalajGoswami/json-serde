@@ -12,6 +12,7 @@ var fLong, fShort *string
 func init() {
 	fLong = flag.String("file", "", "path for json file")
 	fShort = flag.String("f", "", "shorthand for -file or --file")
+	*fLong = "input.json"
 	flag.Parse()
 }
 
@@ -26,7 +27,7 @@ func main() {
 	// buffer = make([]byte, 3)
 	// n, err = file.Read(buffer)
 	// fmt.Println(n, err, string(buffer))
-	tokenGenerator := tokenizer.NewTokenizer(file)
+	tokenGenerator := tokenizer.NewTokenizer(file, tokenizer.TokenizerConfig{BufferLen: 4})
 	token, err := tokenGenerator.Next()
 	fmt.Println(err)
 	if token != nil {

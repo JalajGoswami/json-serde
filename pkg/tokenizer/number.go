@@ -1,6 +1,10 @@
 package tokenizer
 
 func (t *tokenizer) readNumber() (stop bool, err error) {
+	err = t.read()
+	if err != nil {
+		return false, err
+	}
 	var firstDigit byte // if not nil signifies readIndex is at second position
 	if len(t.prevBuffer) == 0 && t.valueIndex == t.readIndex-1 {
 		// executes only for the first time
@@ -9,10 +13,13 @@ func (t *tokenizer) readNumber() (stop bool, err error) {
 			t.mustRead(ErrInvalidEndOfNumber)
 		}
 	}
+	if t.isBufferEmpty() {
+		return true, nil
+	}
 	ch := t.buffer[t.readIndex]
 
 	switch {
-	case ch >= '0' && ch <= '9':
+	case isDigit(ch):
 		{
 			// handling invalid number like 05
 			if firstDigit == '0' {
@@ -32,7 +39,7 @@ func (t *tokenizer) readNumber() (stop bool, err error) {
 				return false, err
 			}
 			ch = t.buffer[t.readIndex]
-			if ch < '0' || ch > '9' {
+			if !isDigit(ch) {
 				return false, ErrInvalidEndOfNumber
 			}
 
@@ -55,6 +62,21 @@ func (t *tokenizer) readNumber() (stop bool, err error) {
 			if err != nil {
 				return false, err
 			}
+			ch = t.buffer[t.readIndex]
+			if !isDigit(ch) || ch != '-' {
+				return false, ErrInvalidEndOfNumber
+			}
+			if ch == '-' {
+				t.readIndex++
+				err := t.mustRead(ErrInvalidEndOfNumber)
+				if err != nil {
+					return false, err
+				}
+				ch = t.buffer[t.readIndex]
+				if !isDigit(ch) {
+					return false, ErrInvalidEndOfNumber
+				}
+			}
 		}
 
 	default:
@@ -64,4 +86,8 @@ func (t *tokenizer) readNumber() (stop bool, err error) {
 		}
 	}
 	return
+}
+
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
 }

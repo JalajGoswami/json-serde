@@ -79,7 +79,9 @@ func (t *tokenizer) read() error {
 		}
 		t.bufferLen = n
 		t.readIndex = 0
-		t.valueIndex = -1
+		if t.valueIndex != -1 {
+			t.valueIndex = 0
+		}
 	}
 	return nil
 }
