@@ -1,8 +1,7 @@
 package tokenizer
 
 func (t *tokenizer) readNumber() (stop bool, err error) {
-	err = t.read()
-	if err != nil {
+	if err = t.read(); err != nil {
 		return false, err
 	}
 	var firstDigit byte // if not nil signifies readIndex is at second position
@@ -63,7 +62,7 @@ func (t *tokenizer) readNumber() (stop bool, err error) {
 				return false, err
 			}
 			ch = t.buffer[t.readIndex]
-			if !isDigit(ch) || ch != '-' {
+			if !isDigit(ch) && ch != '-' {
 				return false, ErrInvalidEndOfNumber
 			}
 			if ch == '-' {

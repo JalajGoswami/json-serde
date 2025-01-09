@@ -4,12 +4,12 @@ import (
 	"cmp"
 	"fmt"
 	"io"
-	"json-serde/utils"
+	"json-serde/pkg/tokenizer/tokentype"
 	"slices"
 )
 
 type Token struct {
-	TokenType utils.TokenType
+	TokenType tokentype.TokenType
 	Value     []byte
 }
 
@@ -25,7 +25,7 @@ type tokenizer struct {
 }
 
 type TokenizerConfig struct {
-	BufferLen int
+	BufferLen int // Size in bytes tokenizer can hold (read from reader) at a single time
 }
 
 func NewTokenizer(rd io.Reader, configs ...TokenizerConfig) tokenizer {
@@ -38,15 +38,12 @@ func NewTokenizer(rd io.Reader, configs ...TokenizerConfig) tokenizer {
 	return tokenizer{reader: rd, buffer: make([]byte, bufferLen)}
 }
 
+// Gets the next token or error if present, like a lazy irreversible iterator
 func (t *tokenizer) Next() (*Token, error) {
 	t.clear()
 	err := t.read()
 	if err != nil {
-		if err == io.EOF && t.bufferLen == 0 {
-			return nil, ErrUnexpectedEOF
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	var stop = false
@@ -68,6 +65,7 @@ func (t *tokenizer) Next() (*Token, error) {
 	return &t.token, nil
 }
 
+// Read from reader if necessary (if no new data is there in buffer)
 func (t *tokenizer) read() error {
 	if t.isBufferEmpty() {
 		if t.valueIndex != -1 {
@@ -86,6 +84,7 @@ func (t *tokenizer) read() error {
 	return nil
 }
 
+// Read and returns a wrapped error, should be used where more bytes must be presnt (in buffer/reader)
 func (t *tokenizer) mustRead(e error) error {
 	err := t.read()
 	if err == io.EOF {
@@ -106,53 +105,55 @@ func (t *tokenizer) isBufferEmpty() bool {
 
 func (t *tokenizer) readCh() (stop bool, err error) {
 	switch t.token.TokenType {
-	case utils.None:
+	case tokentype.None:
 		token, err := t.predictTokenType()
 		if err != nil {
 			return false, err
 		}
-		if token == utils.None {
+		if token == tokentype.None {
 			return false, nil
 		}
 		t.token.TokenType = token
-		isPrimitive := utils.IsPrimitiveType(token)
-		if isPrimitive {
+		if token.IsPrimitive() {
 			t.valueIndex = t.readIndex
 			return false, nil
 		}
 		return true, nil
-	case utils.String:
+	case tokentype.String:
 		return t.readString()
-	case utils.Number:
+	case tokentype.Number:
 		return t.readNumber()
 	}
 	return
 }
 
-func (t *tokenizer) predictTokenType() (utils.TokenType, error) {
+func (t *tokenizer) predictTokenType() (tokentype.TokenType, error) {
+	if err := t.read(); err != nil {
+		return tokentype.None, err
+	}
 	ch := t.buffer[t.readIndex]
 	switch ch {
 	case ' ', '\n', '\r', '\t':
-		return utils.None, nil
+		return tokentype.None, nil
 
 	case '"':
 		t.valuePadding = 1
-		return utils.String, nil
+		return tokentype.String, nil
 
 	case 't', 'f':
-		return utils.Boolean, nil
+		return tokentype.Boolean, nil
 
 	case '[':
-		return utils.Array, nil
+		return tokentype.Array, nil
 
 	case '{':
-		return utils.Object, nil
+		return tokentype.Object, nil
 	}
 
 	if (ch >= '0' && ch <= '9') || ch == '-' {
-		return utils.Number, nil
+		return tokentype.Number, nil
 	}
-	return utils.None, fmt.Errorf("%w %c", ErrInvalidToken, ch)
+	return tokentype.None, fmt.Errorf("%w %c", ErrInvalidToken, ch)
 }
 
 func (t *tokenizer) storeValue() {
