@@ -1,26 +1,43 @@
 package tokenizer
 
+import "io"
+
 func (t *tokenizer) readNumber() (stop bool, err error) {
-	if err = t.read(); err != nil {
-		return false, err
-	}
 	var firstDigit byte // if not nil signifies readIndex is at second position
 	if len(t.prevBuffer) == 0 && t.valueIndex == t.readIndex-1 {
 		// executes only for the first time
 		firstDigit = t.buffer[t.valueIndex]
 		if firstDigit == '-' {
-			t.mustRead(ErrInvalidEndOfNumber)
+			err = t.mustRead(ErrInvalidEndOfNumber)
+			if err != nil {
+				return false, err
+			}
 		}
+	}
+	if err = t.read(); err != nil && err != io.EOF {
+		return false, err
 	}
 	if t.isBufferEmpty() {
 		return true, nil
 	}
 	ch := t.buffer[t.readIndex]
 
+	// handling numbers like 05 or -05, by ending token after 0,
+	// thus treating them as two number tokens, which will be handled by parser
+	if firstDigit == '0' {
+		if ch != '.' && ch != 'e' && ch != 'E' {
+			return true, nil
+		}
+	} else if firstDigit == '-' && ch == '0' {
+		nextCh := t.buffer[t.readIndex+1]
+		if nextCh != '.' && nextCh != 'e' && nextCh != 'E' {
+			return true, nil
+		}
+	}
+
 	switch {
 	case isDigit(ch):
 		{
-			// handling invalid number like 05
 			if firstDigit == '0' {
 				return false, ErrInvalidNumber
 			}
@@ -62,10 +79,7 @@ func (t *tokenizer) readNumber() (stop bool, err error) {
 				return false, err
 			}
 			ch = t.buffer[t.readIndex]
-			if !isDigit(ch) && ch != '-' {
-				return false, ErrInvalidEndOfNumber
-			}
-			if ch == '-' {
+			if ch == '-' || ch == '+' {
 				t.readIndex++
 				err := t.mustRead(ErrInvalidEndOfNumber)
 				if err != nil {
@@ -75,6 +89,8 @@ func (t *tokenizer) readNumber() (stop bool, err error) {
 				if !isDigit(ch) {
 					return false, ErrInvalidEndOfNumber
 				}
+			} else if !isDigit(ch) {
+				return false, ErrInvalidEndOfNumber
 			}
 		}
 
