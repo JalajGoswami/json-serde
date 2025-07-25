@@ -29,8 +29,17 @@ func main() {
 	// fmt.Println(n, err, string(buffer))
 	tokenGenerator := tokenizer.NewTokenizer(file, tokenizer.TokenizerConfig{BufferLen: 4})
 	token, err := tokenGenerator.Next()
-	fmt.Println(err)
-	if token != nil {
-		fmt.Println(token.TokenType, string(token.Value), len(token.Value))
+	for err == nil {
+		if token != nil {
+			fmt.Println(
+				fmt.Sprintf("%-8s", token.TokenType),
+				fmt.Sprintf("(%v bytes)", len(token.Value)),
+				string(token.Value),
+			)
+		} else {
+			panic("No token found even when there is no Error !")
+		}
+		token, err = tokenGenerator.Next()
 	}
+	fmt.Println(err)
 }

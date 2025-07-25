@@ -1,3 +1,4 @@
+// Package tokenizer provides a stream based lexer for json strings
 package tokenizer
 
 import (
@@ -48,7 +49,7 @@ func (t *tokenizer) Next() (*Token, error) {
 
 	var stop = false
 	for !stop {
-		stop, err = t.readCh()
+		stop, err = t.scan()
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +104,7 @@ func (t *tokenizer) isBufferEmpty() bool {
 	return t.bufferLen == 0 || t.readIndex >= t.bufferLen || t.valueIndex >= t.bufferLen
 }
 
-func (t *tokenizer) readCh() (stop bool, err error) {
+func (t *tokenizer) scan() (stop bool, err error) {
 	switch t.token.TokenType {
 	case tokentype.None:
 		token, err := t.predictTokenType()
@@ -114,8 +115,8 @@ func (t *tokenizer) readCh() (stop bool, err error) {
 			return false, nil
 		}
 		t.token.TokenType = token
+		t.valueIndex = t.readIndex
 		if token.IsPrimitive() {
-			t.valueIndex = t.readIndex
 			return false, nil
 		}
 		return true, nil
@@ -123,6 +124,11 @@ func (t *tokenizer) readCh() (stop bool, err error) {
 		return t.readString()
 	case tokentype.Number:
 		return t.readNumber()
+	case tokentype.Boolean, tokentype.Null:
+		return t.readLiteral()
+	case tokentype.Symbol:
+		// need no extra processing as symbols are 1 character long
+		return true, nil
 	}
 	return
 }
@@ -143,11 +149,11 @@ func (t *tokenizer) predictTokenType() (tokentype.TokenType, error) {
 	case 't', 'f':
 		return tokentype.Boolean, nil
 
-	case '[':
-		return tokentype.Array, nil
+	case 'n':
+		return tokentype.Null, nil
 
-	case '{':
-		return tokentype.Object, nil
+	case '[', ']', '{', '}', ',', ':':
+		return tokentype.Symbol, nil
 	}
 
 	if (ch >= '0' && ch <= '9') || ch == '-' {

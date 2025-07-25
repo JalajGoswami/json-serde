@@ -1,1 +1,14 @@
-
+[
+    null,
+    12,
+    "hello",
+    88.7589,
+    true,
+    {
+        "some": "value",
+        "data": [
+            11,
+            true
+        ]
+    }
+]

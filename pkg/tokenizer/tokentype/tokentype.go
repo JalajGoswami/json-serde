@@ -8,8 +8,7 @@ const (
 	Number
 	Boolean
 	Null
-	Array
-	Object
+	Symbol
 )
 
 var tokenTypeNames = [...]string{
@@ -18,8 +17,7 @@ var tokenTypeNames = [...]string{
 	"Number",
 	"Boolean",
 	"Null",
-	"Array",
-	"Object",
+	"Symbol",
 }
 
 func (t TokenType) String() string {
@@ -30,5 +28,5 @@ func (t TokenType) String() string {
 }
 
 func (t TokenType) IsPrimitive() bool {
-	return t != Object && t != Array
+	return t != Symbol
 }
