@@ -1,18 +1,27 @@
 TOKENIZER:
-    ☐ String
+    ✔ String
         ✔ String detection & parsing @done
-        ☐ Handling control & escape characters
+        ✔ Handling control & escape characters
             ✔ Common control characters & escape sequences @done
-            ☐ Custom hexadecimal control codes (\u_hex_digits)
+            ✔ Custom hexadecimal control codes (\u_hex_digits)
 
-    ☐ Number
-        ☐ Number detection & parsing
-        ☐ Handling negative and fractional number
-        ☐ Numbers with exponential expression
+    ✔ Number
+        ✔ Number detection & parsing
+        ✔ Handling negative and fractional number
+        ✔ Numbers with exponential expression
     
-    ☐ Boolean
-    ☐ Null & basic separator like colon, comma
-    ☐ Object
-    ☐ Array
+    ✔ Boolean
+    ✔ Null & basic separator like colon, comma
+    ✔ Object
+    ✔ Array
 
 DESIRALIZER:
+    ☐ Early Validation Checks
+    ☐ AST Generation
+    ☐ AST traversal & memory objects creation for any/dynamic type
+    ☐ Handle Strict Types:
+        ☐ Slices
+        ☐ Maps
+        ☐ Structs
+        ☐ Number
+        ☐ String

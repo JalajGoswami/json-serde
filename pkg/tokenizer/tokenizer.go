@@ -14,6 +14,10 @@ type Token struct {
 	Value     []byte
 }
 
+type Tokenizer interface {
+	Next() (*Token, error)
+}
+
 type tokenizer struct {
 	reader       io.Reader
 	buffer       []byte
@@ -29,14 +33,14 @@ type TokenizerConfig struct {
 	BufferLen int // Size in bytes tokenizer can hold (read from reader) at a single time
 }
 
-func NewTokenizer(rd io.Reader, configs ...TokenizerConfig) tokenizer {
+func NewTokenizer(rd io.Reader, configs ...TokenizerConfig) Tokenizer {
 	var bufferLen = 4 * 1024
 	for _, config := range configs {
 		if config.BufferLen > 0 {
 			bufferLen = config.BufferLen
 		}
 	}
-	return tokenizer{reader: rd, buffer: make([]byte, bufferLen)}
+	return &tokenizer{reader: rd, buffer: make([]byte, bufferLen)}
 }
 
 // Gets the next token or error if present, like a lazy irreversible iterator

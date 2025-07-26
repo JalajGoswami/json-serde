@@ -34,6 +34,7 @@ func PrintLogo() {
 	fmt.Println(getColored("blue", strings.Repeat("-", 30)))
 	fmt.Print("\n\n")
 }
+
 func OpenFile(paths ...*string) *os.File {
 	var filePath string
 	for _, path := range paths {
