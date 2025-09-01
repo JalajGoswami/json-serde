@@ -11,7 +11,7 @@ type Parser struct {
 	tk tokenizer.Tokenizer
 }
 
-func (d *Parser) Parse(v any) error {
+func (p *Parser) Parse(v any) error {
 	if err := checkValidInput(v); err != nil {
 		return err
 	}
@@ -19,7 +19,7 @@ func (d *Parser) Parse(v any) error {
 	valueType := reflect.TypeOf(v).Elem()
 	switch valueType.Kind() {
 	case reflect.Interface:
-		err := d.buildAST()
+		err := p.buildTree()
 		if err != nil {
 			return err
 		}
@@ -28,7 +28,31 @@ func (d *Parser) Parse(v any) error {
 	return nil
 }
 
-func (d *Parser) buildAST() error {
+type NodeType uint
+
+const (
+	NullNode = iota
+	BooleanNode
+	NumberNode
+	StringNode
+	ArrayNode
+	ObjectNode
+	PropertyNode
+)
+
+type Node struct {
+	Type     NodeType
+	Value    any
+	Key      string // present in property node
+	Children []*Node
+}
+
+func (p *Parser) buildTree() error {
+	// iterate over tokens got from tokenizer and then generate a parse tree for json
+	_, err := p.tk.Next()
+	if err != nil {
+
+	}
 	return nil
 }
 

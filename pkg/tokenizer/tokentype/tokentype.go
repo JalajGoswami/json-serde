@@ -4,10 +4,10 @@ type TokenType uint8
 
 const (
 	None TokenType = iota
-	String
-	Number
-	Boolean
 	Null
+	Boolean
+	Number
+	String
 	Symbol
 )
 
@@ -29,4 +29,51 @@ func (t TokenType) String() string {
 
 func (t TokenType) IsPrimitive() bool {
 	return t != Symbol
+}
+
+type SymbolType uint8
+
+const (
+	NoSymbol SymbolType = iota
+	Comma
+	Colon
+	BracketOpen
+	BracketClose
+	BraceOpen
+	BraceClose
+)
+
+var symbolTypeNames = [...]string{
+	"No Symbol",
+	"Comma",
+	"Colon",
+	"Opening Bracket",
+	"Closing Bracket",
+	"Opening Brace",
+	"Closing Brace",
+}
+
+func (t SymbolType) String() string {
+	if int(t) >= len(symbolTypeNames) {
+		return "NoSymbol"
+	}
+	return symbolTypeNames[t]
+}
+
+var symbols = [...]byte{
+	',',
+	':',
+	'[',
+	']',
+	'{',
+	'}',
+}
+
+func SymbolFromByte(b byte) SymbolType {
+	for i, s := range symbols {
+		if s == b {
+			return SymbolType(i + 1)
+		}
+	}
+	return NoSymbol
 }

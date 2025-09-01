@@ -10,8 +10,9 @@ import (
 )
 
 type Token struct {
-	TokenType tokentype.TokenType
-	Value     []byte
+	TokenType  tokentype.TokenType
+	Value      []byte
+	SymbolType tokentype.SymbolType
 }
 
 type Tokenizer interface {
@@ -122,17 +123,17 @@ func (t *tokenizer) scan() (stop bool, err error) {
 		t.valueIndex = t.readIndex
 		if token.IsPrimitive() {
 			return false, nil
+		} else {
+			// case of symbols
+			t.token.SymbolType = tokentype.SymbolFromByte(t.buffer[t.readIndex])
+			return true, nil
 		}
-		return true, nil
 	case tokentype.String:
 		return t.readString()
 	case tokentype.Number:
 		return t.readNumber()
 	case tokentype.Boolean, tokentype.Null:
 		return t.readLiteral()
-	case tokentype.Symbol:
-		// need no extra processing as symbols are 1 character long
-		return true, nil
 	}
 	return
 }

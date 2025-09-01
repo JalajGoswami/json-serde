@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"json-serde/pkg/parser"
 	"json-serde/pkg/tokenizer"
 	"json-serde/utils"
+	"reflect"
 )
 
 var fLong, fShort *string
@@ -15,6 +17,12 @@ func init() {
 	*fLong = "input.json"
 	flag.Parse()
 }
+
+type str struct {
+	K string
+}
+
+func (s str) H() {}
 
 func main() {
 	utils.PrintLogo()
@@ -27,19 +35,24 @@ func main() {
 	// buffer = make([]byte, 3)
 	// n, err = file.Read(buffer)
 	// fmt.Println(n, err, string(buffer))
+
 	tokenGenerator := tokenizer.NewTokenizer(file, tokenizer.TokenizerConfig{BufferLen: 4})
-	token, err := tokenGenerator.Next()
-	for err == nil {
-		if token != nil {
-			fmt.Println(
-				fmt.Sprintf("%-8s", token.TokenType),
-				fmt.Sprintf("(%v bytes)", len(token.Value)),
-				string(token.Value),
-			)
-		} else {
-			panic("No token found even when there is no Error !")
-		}
-		token, err = tokenGenerator.Next()
-	}
+	// token, err := tokenGenerator.Next()
+	// for err == nil {
+	// 	if token != nil {
+	// 		fmt.Println(
+	// 			fmt.Sprintf("%-8s", token.TokenType),
+	// 			fmt.Sprintf("(%v bytes)", len(token.Value)),
+	// 			string(token.Value),
+	// 		)
+	// 	} else {
+	// 		panic("No token found even when there is no Error !")
+	// 	}
+	// 	token, err = tokenGenerator.Next()
+	// }
+	var v []any
+	fmt.Println(reflect.TypeOf(v))
+	de := parser.NewParser(tokenGenerator)
+	err := de.Parse(&v)
 	fmt.Println(err)
 }
