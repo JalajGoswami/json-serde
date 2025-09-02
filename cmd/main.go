@@ -50,7 +50,7 @@ func main() {
 	// 	}
 	// 	token, err = tokenGenerator.Next()
 	// }
-	var v []any
+	var v any
 	fmt.Println(reflect.TypeOf(v))
 	de := parser.NewParser(tokenGenerator)
 	err := de.Parse(&v)

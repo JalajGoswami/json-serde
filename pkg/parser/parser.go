@@ -2,9 +2,13 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"json-serde/pkg/tokenizer"
+	"json-serde/pkg/tokenizer/tokentype"
 	"reflect"
+	"slices"
+	"strconv"
 )
 
 type Parser struct {
@@ -28,32 +32,104 @@ func (p *Parser) Parse(v any) error {
 	return nil
 }
 
-type NodeType uint
-
-const (
-	NullNode = iota
-	BooleanNode
-	NumberNode
-	StringNode
-	ArrayNode
-	ObjectNode
-	PropertyNode
-)
-
-type Node struct {
-	Type     NodeType
-	Value    any
-	Key      string // present in property node
-	Children []*Node
-}
-
 func (p *Parser) buildTree() error {
 	// iterate over tokens got from tokenizer and then generate a parse tree for json
-	_, err := p.tk.Next()
+	root, err := p.tk.Next()
 	if err != nil {
-
+		return err
 	}
-	return nil
+	parseTree, err := p.parseToken(root)
+	data, _ := json.MarshalIndent(parseTree, "", "  ")
+	fmt.Println(string(data))
+	return err
+}
+
+func (p *Parser) parseToken(t *tokenizer.Token) (*Node, error) {
+	switch t.TokenType {
+	case tokentype.Null:
+		return &Node{Type: NullNode, Value: nil}, nil
+	case tokentype.Boolean:
+		return &Node{Type: BooleanNode, Value: t.Value[0] == 't'}, nil
+	case tokentype.Number:
+		number := &Node{Type: NumberNode}
+		if isFractional(t.Value) {
+			number.Value, _ = strconv.ParseFloat(string(t.Value), 64)
+		} else {
+			number.Value, _ = strconv.ParseInt(string(t.Value), 10, 64)
+		}
+		return number, nil
+	case tokentype.String:
+		return &Node{Type: StringNode, Value: string(t.Value)}, nil
+	case tokentype.Symbol:
+		if t.SymbolType == tokentype.BraceOpen {
+			return p.parseObject(t)
+		}
+	}
+	return nil, ErrUnexpectedToken
+}
+
+func (p *Parser) parseObject(t *tokenizer.Token) (*Node, error) {
+	if t.SymbolType != tokentype.BraceOpen {
+		return nil, fmt.Errorf("opening brace expected")
+	}
+	object := &Node{Type: ObjectNode}
+
+	trailingComma := false
+	for {
+		token, err := p.tk.Next()
+		if err != nil {
+			return nil, fmt.Errorf("%w, expected property or closing brace", err)
+		}
+
+		if token.TokenType == tokentype.String {
+			trailingComma = false
+			property := &Node{Type: PropertyNode}
+			property.Key = string(token.Value)
+
+			token, err = p.tk.Next()
+			if err != nil {
+				return nil, fmt.Errorf("%w, expected colon", err)
+			}
+			if token.SymbolType != tokentype.Colon {
+				return nil, fmt.Errorf("found %v, expected colon", token.TokenType)
+			}
+
+			token, err = p.tk.Next()
+			if err != nil {
+				return nil, fmt.Errorf("%w, expected value", err)
+			}
+			property.Value, err = p.parseToken(token)
+			if err != nil {
+				if err == ErrUnexpectedToken {
+					return nil, fmt.Errorf("found %v, expected value", token.SymbolType)
+				}
+				return nil, err
+			}
+			object.Children = append(object.Children, property)
+
+			token, err = p.tk.Next()
+			if err != nil {
+				return nil, fmt.Errorf("%w, expected comma or closing brace", err)
+			}
+
+			if token.SymbolType == tokentype.Comma {
+				trailingComma = true
+				continue
+			} else if token.SymbolType == tokentype.BraceClose {
+				return object, nil
+			} else {
+				return nil, fmt.Errorf("found %v, expected comma or closing brace", token.TokenType)
+			}
+
+		} else if token.SymbolType == tokentype.BraceClose {
+			if trailingComma {
+				return nil, ErrTrailingComma
+			}
+			return object, nil
+		} else {
+			return nil, fmt.Errorf("found %v, expected property or closing brace", token.TokenType)
+		}
+	}
 }
 
 func NewParser(tk tokenizer.Tokenizer) Parser {
@@ -73,4 +149,10 @@ func checkValidInput(v any) error {
 		return fmt.Errorf("cannot parse json into %v", valueType)
 	}
 	return nil
+}
+
+func isFractional(text []byte) bool {
+	return slices.ContainsFunc(text, func(b byte) bool {
+		return b == '.' || b == 'e' || b == 'E'
+	})
 }

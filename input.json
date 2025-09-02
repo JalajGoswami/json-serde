@@ -1,14 +1,10 @@
-[
-    null,
-    12,
-    "hello",
-    88.7589,
-    true,
-    {
-        "some": "value",
-        "data": [
-            11,
-            true
-        ]
+{
+    "hi": "there",
+    "hello": {
+        "what": {
+            "is": "your",
+            "age": 24,
+            "underage": false
+        }
     }
-]
+}
