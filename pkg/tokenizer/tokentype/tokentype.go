@@ -27,6 +27,10 @@ func (t TokenType) String() string {
 	return tokenTypeNames[t]
 }
 
+func (t TokenType) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + t.String() + `"`), nil
+}
+
 func (t TokenType) IsPrimitive() bool {
 	return t != Symbol
 }

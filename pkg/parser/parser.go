@@ -2,7 +2,6 @@
 package parser
 
 import (
-	"encoding/json"
 	"fmt"
 	"json-serde/pkg/tokenizer"
 	"json-serde/pkg/tokenizer/tokentype"
@@ -20,36 +19,40 @@ func (p *Parser) Parse(v any) error {
 		return err
 	}
 
-	valueType := reflect.TypeOf(v).Elem()
-	switch valueType.Kind() {
+	value := reflect.ValueOf(v).Elem()
+	switch value.Kind() {
 	case reflect.Interface:
-		err := p.buildTree()
+		parseTree, err := p.buildTree()
 		if err != nil {
 			return err
 		}
+
+		parsed := decodeTree(parseTree)
+		value.Set(reflect.ValueOf(parsed))
 	}
 
 	return nil
 }
 
-func (p *Parser) buildTree() error {
+func (p *Parser) buildTree() (*Node, error) {
 	// iterate over tokens got from tokenizer and then generate a parse tree for json
 	root, err := p.tk.Next()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	parseTree, err := p.parseToken(root)
-	data, _ := json.MarshalIndent(parseTree, "", "  ")
-	fmt.Println(string(data))
-	return err
+	return parseTree, err
 }
 
 func (p *Parser) parseToken(t *tokenizer.Token) (*Node, error) {
 	switch t.TokenType {
+
 	case tokentype.Null:
 		return &Node{Type: NullNode, Value: nil}, nil
+
 	case tokentype.Boolean:
 		return &Node{Type: BooleanNode, Value: t.Value[0] == 't'}, nil
+
 	case tokentype.Number:
 		number := &Node{Type: NumberNode}
 		if isFractional(t.Value) {
@@ -58,12 +61,18 @@ func (p *Parser) parseToken(t *tokenizer.Token) (*Node, error) {
 			number.Value, _ = strconv.ParseInt(string(t.Value), 10, 64)
 		}
 		return number, nil
+
 	case tokentype.String:
 		return &Node{Type: StringNode, Value: string(t.Value)}, nil
+
 	case tokentype.Symbol:
 		if t.SymbolType == tokentype.BraceOpen {
 			return p.parseObject(t)
 		}
+		if t.SymbolType == tokentype.BracketOpen {
+			return p.parseArray(t)
+		}
+
 	}
 	return nil, ErrUnexpectedToken
 }
@@ -128,6 +137,51 @@ func (p *Parser) parseObject(t *tokenizer.Token) (*Node, error) {
 			return object, nil
 		} else {
 			return nil, fmt.Errorf("found %v, expected property or closing brace", token.TokenType)
+		}
+	}
+}
+
+func (p *Parser) parseArray(t *tokenizer.Token) (*Node, error) {
+	if t.SymbolType != tokentype.BracketOpen {
+		return nil, fmt.Errorf("opening bracket expected")
+	}
+	trailingComma := false
+	array := &Node{Type: ArrayNode}
+	for {
+		token, err := p.tk.Next()
+		if err != nil {
+			return nil, fmt.Errorf("%w, expected value or closing bracket", err)
+		}
+
+		if token.SymbolType == tokentype.BracketClose {
+			if trailingComma {
+				return nil, ErrTrailingComma
+			}
+			return array, nil
+		}
+		trailingComma = false
+
+		value, err := p.parseToken(token)
+		if err != nil {
+			if err == ErrUnexpectedToken {
+				return nil, fmt.Errorf("found %v, expected value", token.SymbolType)
+			}
+			return nil, err
+		}
+		array.Children = append(array.Children, value)
+
+		token, err = p.tk.Next()
+		if err != nil {
+			return nil, fmt.Errorf("%w, expected comma or closing bracket", err)
+		}
+
+		if token.SymbolType == tokentype.Comma {
+			trailingComma = true
+			continue
+		} else if token.SymbolType == tokentype.BracketClose {
+			return array, nil
+		} else {
+			return nil, fmt.Errorf("found %v, expected comma or closing bracket", token.TokenType)
 		}
 	}
 }
