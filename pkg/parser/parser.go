@@ -63,7 +63,7 @@ func (p *Parser) parseToken(t *tokenizer.Token) (*Node, error) {
 		return number, nil
 
 	case tokentype.String:
-		return &Node{Type: StringNode, Value: string(t.Value)}, nil
+		return p.parseString(t)
 
 	case tokentype.Symbol:
 		if t.SymbolType == tokentype.BraceOpen {
@@ -75,6 +75,14 @@ func (p *Parser) parseToken(t *tokenizer.Token) (*Node, error) {
 
 	}
 	return nil, ErrUnexpectedToken
+}
+
+func (p *Parser) parseString(t *tokenizer.Token) (*Node, error) {
+	if t.Value[0] != '"' || t.Value[len(t.Value)-1] != '"' {
+		return nil, fmt.Errorf("double quote expected")
+	}
+	text := t.Value[1 : len(t.Value)-1]
+	return &Node{Type: StringNode, Value: string(text)}, nil
 }
 
 func (p *Parser) parseObject(t *tokenizer.Token) (*Node, error) {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"json-serde/pkg/tokenizer/tokentype"
-	"slices"
 )
 
 type Token struct {
@@ -20,14 +19,13 @@ type Tokenizer interface {
 }
 
 type tokenizer struct {
-	reader       io.Reader
-	buffer       []byte
-	bufferLen    int
-	readIndex    int
-	valueIndex   int
-	valuePadding int
-	prevBuffer   []byte
-	token        Token
+	reader     io.Reader
+	buffer     []byte
+	bufferLen  int
+	readIndex  int
+	valueIndex int
+	prevBuffer []byte
+	token      Token
 }
 
 type TokenizerConfig struct {
@@ -60,14 +58,7 @@ func (t *tokenizer) Next() (*Token, error) {
 		}
 		t.readIndex++
 	}
-	paddingFactor := 1
-	if len(t.prevBuffer) != 0 {
-		t.prevBuffer = slices.Delete(t.prevBuffer, 0, t.valuePadding)
-		paddingFactor = 0
-	}
-	valueStartIndex := t.valueIndex + (paddingFactor * t.valuePadding)
-	valueEndIndex := t.readIndex - t.valuePadding
-	t.token.Value = append(t.prevBuffer, t.buffer[valueStartIndex:valueEndIndex]...)
+	t.token.Value = append(t.prevBuffer, t.buffer[t.valueIndex:t.readIndex]...)
 	return &t.token, nil
 }
 
@@ -148,7 +139,6 @@ func (t *tokenizer) predictTokenType() (tokentype.TokenType, error) {
 		return tokentype.None, nil
 
 	case '"':
-		t.valuePadding = 1
 		return tokentype.String, nil
 
 	case 't', 'f':
@@ -177,5 +167,4 @@ func (t *tokenizer) clear() {
 	t.token = Token{}
 	t.prevBuffer = []byte{}
 	t.valueIndex = -1
-	t.valuePadding = 0
 }

@@ -18,7 +18,9 @@ func (t *tokenizer) readString() (stop bool, err error) {
 			if err != nil {
 				return false, err
 			}
-			t.prevBuffer = slices.Delete(t.prevBuffer, len(t.prevBuffer)-1, len(t.prevBuffer))
+			// removing escape symbol at the end of prevBuffer
+			t.prevBuffer[len(t.prevBuffer)-1] = 0
+			t.prevBuffer = t.prevBuffer[:len(t.prevBuffer)-1]
 		} else {
 			// removing escape symbol from buffer
 			_ = slices.Delete(t.buffer, t.readIndex, t.readIndex+1)
