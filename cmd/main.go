@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"json-serde/pkg/encoder"
 	"json-serde/pkg/parser"
 	"json-serde/pkg/tokenizer"
 	"json-serde/utils"
@@ -55,4 +56,7 @@ func main() {
 	de := parser.NewParser(tokenGenerator)
 	err := de.Parse(&v)
 	fmt.Println(err)
+	enc := encoder.NewEncoder()
+	data, err := enc.Encode(4556)
+	fmt.Println(string(data), data, err)
 }
