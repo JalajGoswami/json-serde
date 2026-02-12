@@ -1,8 +1,11 @@
+// Package encoder serialize native data types into their json counterparts
 package encoder
 
 import (
+	"math"
 	"reflect"
 	"slices"
+	"strconv"
 )
 
 type Encoder struct {
@@ -30,6 +33,8 @@ func (e *Encoder) encodeValue(v any) ([]byte, error) {
 		e.encodeInt(value.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		e.encodeUint(value.Uint())
+	case reflect.Float32, reflect.Float64:
+		e.encodeFloat(value.Float())
 	}
 	return e.data, nil
 }
@@ -45,22 +50,26 @@ func (e *Encoder) encodeUint(value uint64) {
 	e.data = append(e.data, encodeInteger(value)...)
 }
 
+func (e *Encoder) encodeFloat(value float64) {
+	e.data = append(e.data, strconv.FormatFloat(value, 'g', -1, 64)...)
+}
+
 type Integer interface {
 	~int64 | ~uint64
 }
 
 func encodeInteger[T Integer](value T) []byte {
-	var encoded []byte
 	if value == 0 {
-		encoded = append(encoded, '0')
+		return []byte{'0'}
 	}
-	var digits []byte
+	estimatedDigits := int(math.Log10(float64(value))) + 1
+	var digits = make([]byte, 0, estimatedDigits)
 	for value > 0 {
 		lsd := value % 10
-		digits = append(digits, byte(lsd+48))
+		digits = append(digits, '0'+byte(lsd))
 		value = value / 10
 	}
-	encoded = slices.Grow(encoded, len(digits))
+	var encoded = make([]byte, 0, len(digits))
 	for _, d := range slices.Backward(digits) {
 		encoded = append(encoded, d)
 	}
