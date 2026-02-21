@@ -2,80 +2,96 @@
 package encoder
 
 import (
-	"math"
+	"cmp"
+	"errors"
+	"fmt"
+	"io"
 	"reflect"
-	"slices"
-	"strconv"
 )
 
+var ErrUnserializableType = errors.New("unserializable type")
+
 type Encoder struct {
-	data []byte
+	writer io.Writer
+	n      int
 }
 
-func (e *Encoder) Encode(v any) ([]byte, error) {
-	if v == nil {
-		return []byte("null"), nil
+func NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{writer: w}
+}
+
+func (e *Encoder) Encode(v any) (int, error) {
+	err := e.encodeValue(v)
+	return e.n, err
+}
+
+func (e *Encoder) write(p []byte) error {
+	n, err := e.writer.Write(p)
+	e.n += n
+	if err != nil || n < len(p) {
+		return cmp.Or(err, io.EOF)
 	}
-	return e.encodeValue(v)
+	return nil
 }
 
-func (e *Encoder) encodeValue(v any) ([]byte, error) {
+func (e *Encoder) encodeValue(v any) error {
+	if v == nil {
+		return e.write([]byte("null"))
+	}
 	value := reflect.ValueOf(v)
+	var err error
 	switch value.Kind() {
 	case reflect.Bool:
-		b := v.(bool)
-		if b {
-			e.data = append(e.data, 116, 114, 117, 101) // ascii of true
-		} else {
-			e.data = append(e.data, 102, 97, 108, 115, 101) // ascii of false
-		}
+		err = e.encodeBool(v)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		e.encodeInt(value.Int())
+		err = e.encodeInt(value.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		e.encodeUint(value.Uint())
+		err = e.encodeUint(value.Uint())
 	case reflect.Float32, reflect.Float64:
-		e.encodeFloat(value.Float())
+		err = e.encodeFloat(value.Float())
+	case reflect.String:
+		err = e.encodeString(v)
+	case reflect.Array, reflect.Slice:
+		err = e.encodeArray(value)
+
+	default:
+		err = fmt.Errorf("%w, type=%s", ErrUnserializableType, value.Type())
 	}
-	return e.data, nil
-}
-func (e *Encoder) encodeInt(value int64) {
-	if value < 0 {
-		e.data = append(e.data, '-') // negative sign
-		value *= -1                  // faster math.Abs
-	}
-	e.data = append(e.data, encodeInteger(value)...)
+	return err
 }
 
-func (e *Encoder) encodeUint(value uint64) {
-	e.data = append(e.data, encodeInteger(value)...)
-}
-
-func (e *Encoder) encodeFloat(value float64) {
-	e.data = append(e.data, strconv.FormatFloat(value, 'g', -1, 64)...)
-}
-
-type Integer interface {
-	~int64 | ~uint64
-}
-
-func encodeInteger[T Integer](value T) []byte {
-	if value == 0 {
-		return []byte{'0'}
+func (e *Encoder) encodeBool(v any) error {
+	if v.(bool) {
+		return e.write([]byte("true"))
 	}
-	estimatedDigits := int(math.Log10(float64(value))) + 1
-	var digits = make([]byte, 0, estimatedDigits)
-	for value > 0 {
-		lsd := value % 10
-		digits = append(digits, '0'+byte(lsd))
-		value = value / 10
-	}
-	var encoded = make([]byte, 0, len(digits))
-	for _, d := range slices.Backward(digits) {
-		encoded = append(encoded, d)
-	}
-	return encoded
+	return e.write([]byte("false"))
 }
 
-func NewEncoder() *Encoder {
-	return &Encoder{}
+func (e *Encoder) encodeString(v any) error {
+	n, err := fmt.Fprintf(e.writer, "%q", v)
+	e.n += n
+	return err
+}
+
+func (e *Encoder) encodeArray(value reflect.Value) error {
+	err := e.write([]byte{'['})
+	if err != nil {
+		return err
+	}
+
+	n := value.Len()
+	for i := range n {
+		elem := value.Index(i)
+		err := e.encodeValue(elem.Interface())
+		if err != nil {
+			return err
+		}
+		if i < n-1 {
+			err := e.write([]byte{','})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return e.write([]byte{']'})
 }

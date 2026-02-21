@@ -4,10 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"json-serde/pkg/encoder"
-	"json-serde/pkg/parser"
-	"json-serde/pkg/tokenizer"
 	"json-serde/utils"
-	"reflect"
+	"os"
 )
 
 var fLong, fShort *string
@@ -37,7 +35,7 @@ func main() {
 	// n, err = file.Read(buffer)
 	// fmt.Println(n, err, string(buffer))
 
-	tokenGenerator := tokenizer.NewTokenizer(file, tokenizer.TokenizerConfig{BufferLen: 4})
+	// tokenGenerator := tokenizer.NewTokenizer(file, tokenizer.TokenizerConfig{BufferLen: 4})
 	// token, err := tokenGenerator.Next()
 	// for err == nil {
 	// 	if token != nil {
@@ -51,12 +49,12 @@ func main() {
 	// 	}
 	// 	token, err = tokenGenerator.Next()
 	// }
-	var v any
-	fmt.Println(reflect.TypeOf(v))
-	de := parser.NewParser(tokenGenerator)
-	err := de.Parse(&v)
-	fmt.Println(err)
-	enc := encoder.NewEncoder()
-	data, err := enc.Encode(4556)
-	fmt.Println(string(data), data, err)
+	var v = os.Stderr
+	// de := parser.NewParser(tokenGenerator)
+	// err := de.Parse(&v)
+	// fmt.Println(err, v)
+	enc := encoder.NewEncoder(v)
+	var arr = []any{nil, nil, "hello there", "how's you", "this is \"quoted\""}
+	n, err := enc.Encode(arr)
+	fmt.Println("\n", n, err)
 }
